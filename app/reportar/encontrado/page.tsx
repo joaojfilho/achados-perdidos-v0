@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload, Eye, User } from "lucide-react"
+import { ArrowLeft, Upload, Eye, User, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useItems } from "@/contexts/items-context"
 import type { FormDataEncontrado } from "@/lib/types"
@@ -31,6 +31,7 @@ const categorias = [
 export default function ReportarEncontradoPage() {
   const { toast } = useToast()
   const { adicionarItemEncontrado } = useItems()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<FormDataEncontrado>({
     nomeItem: "",
     descricao: "",
@@ -44,10 +45,9 @@ export default function ReportarEncontradoPage() {
     observacoes: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validação básica
     if (
       !formData.nomeItem ||
       !formData.descricao ||
@@ -63,26 +63,38 @@ export default function ReportarEncontradoPage() {
       return
     }
 
-    adicionarItemEncontrado(formData)
+    setIsSubmitting(true)
 
-    toast({
-      title: "Item reportado com sucesso!",
-      description: "Seu item encontrado foi adicionado ao sistema. O dono poderá entrar em contato com você.",
-    })
+    try {
+      await adicionarItemEncontrado(formData)
 
-    // Reset form
-    setFormData({
-      nomeItem: "",
-      descricao: "",
-      categoria: "",
-      localEncontrado: "",
-      dataEncontrada: "",
-      localGuardado: "",
-      nomeContato: "",
-      telefone: "",
-      email: "",
-      observacoes: "",
-    })
+      toast({
+        title: "Item reportado com sucesso!",
+        description: "Seu item encontrado foi adicionado ao sistema. O dono poderá entrar em contato com você.",
+      })
+
+      setFormData({
+        nomeItem: "",
+        descricao: "",
+        categoria: "",
+        localEncontrado: "",
+        dataEncontrada: "",
+        localGuardado: "",
+        nomeContato: "",
+        telefone: "",
+        email: "",
+        observacoes: "",
+      })
+    } catch (error) {
+      console.error("[v0] Erro ao reportar item encontrado:", error)
+      toast({
+        title: "Erro ao reportar item",
+        description: "Ocorreu um erro ao salvar seu item. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleInputChange = (field: keyof FormDataEncontrado, value: string) => {
@@ -270,10 +282,17 @@ export default function ReportarEncontradoPage() {
 
               {/* Submit Button */}
               <div className="flex gap-4 pt-4">
-                <Button type="submit" className="flex-1">
-                  Reportar Item Encontrado
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    "Reportar Item Encontrado"
+                  )}
                 </Button>
-                <Button type="button" variant="outline" asChild>
+                <Button type="button" variant="outline" asChild disabled={isSubmitting}>
                   <Link href="/">Cancelar</Link>
                 </Button>
               </div>

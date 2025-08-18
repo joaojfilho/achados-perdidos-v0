@@ -8,87 +8,91 @@ interface ItemsContextType {
   items: Item[]
   itensPerdidos: ItemPerdido[]
   itensEncontrados: ItemEncontrado[]
-  adicionarItemPerdido: (data: FormDataPerdido) => void
-  adicionarItemEncontrado: (data: FormDataEncontrado) => void
+  adicionarItemPerdido: (data: FormDataPerdido) => Promise<void>
+  adicionarItemEncontrado: (data: FormDataEncontrado) => Promise<void>
   buscarItens: (query: string, categoria?: string, local?: string) => Item[]
   loading: boolean
+  recarregarItens: () => Promise<void>
 }
 
 const ItemsContext = createContext<ItemsContextType | undefined>(undefined)
-
-const STORAGE_KEY = "achados-perdidos-items"
 
 export function ItemsProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Carregar dados do localStorage na inicialização
-  useEffect(() => {
+  const carregarItens = async () => {
     try {
-      const savedItems = localStorage.getItem(STORAGE_KEY)
-      if (savedItems) {
-        const parsedItems = JSON.parse(savedItems)
-        setItems(parsedItems)
+      setLoading(true)
+      const response = await fetch("/api/items")
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar itens")
       }
+
+      const data = await response.json()
+      const todosItens: Item[] = [...data.perdidos, ...data.encontrados]
+
+      // Ordenar por data de criação (mais recentes primeiro)
+      todosItens.sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime())
+
+      setItems(todosItens)
+      console.log("[v0] Itens carregados da API:", todosItens.length)
     } catch (error) {
-      console.error("[v0] Erro ao carregar itens do localStorage:", error)
+      console.error("[v0] Erro ao carregar itens da API:", error)
     } finally {
       setLoading(false)
     }
-  }, [])
-
-  // Salvar dados no localStorage sempre que items mudar
-  useEffect(() => {
-    if (!loading) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-      } catch (error) {
-        console.error("[v0] Erro ao salvar itens no localStorage:", error)
-      }
-    }
-  }, [items, loading])
-
-  const adicionarItemPerdido = (data: FormDataPerdido) => {
-    const novoItem: ItemPerdido = {
-      id: crypto.randomUUID(),
-      tipo: "perdido",
-      nomeItem: data.nomeItem,
-      descricao: data.descricao,
-      categoria: data.categoria,
-      local: data.local,
-      data: data.data,
-      nomeContato: data.nomeContato,
-      telefone: data.telefone,
-      email: data.email,
-      observacoes: data.observacoes,
-      criadoEm: new Date().toISOString(),
-    }
-
-    setItems((prev) => [novoItem, ...prev])
-    console.log("[v0] Item perdido adicionado:", novoItem)
   }
 
-  const adicionarItemEncontrado = (data: FormDataEncontrado) => {
-    const novoItem: ItemEncontrado = {
-      id: crypto.randomUUID(),
-      tipo: "encontrado",
-      nomeItem: data.nomeItem,
-      descricao: data.descricao,
-      categoria: data.categoria,
-      local: data.localEncontrado,
-      data: data.dataEncontrada,
-      localEncontrado: data.localEncontrado,
-      dataEncontrada: data.dataEncontrada,
-      localGuardado: data.localGuardado,
-      nomeContato: data.nomeContato,
-      telefone: data.telefone,
-      email: data.email,
-      observacoes: data.observacoes,
-      criadoEm: new Date().toISOString(),
-    }
+  useEffect(() => {
+    carregarItens()
+  }, [])
 
-    setItems((prev) => [novoItem, ...prev])
-    console.log("[v0] Item encontrado adicionado:", novoItem)
+  const adicionarItemPerdido = async (data: FormDataPerdido) => {
+    try {
+      const response = await fetch("/api/items/perdidos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao adicionar item perdido")
+      }
+
+      const novoItem: ItemPerdido = await response.json()
+      setItems((prev) => [novoItem, ...prev])
+      console.log("[v0] Item perdido adicionado via API:", novoItem)
+    } catch (error) {
+      console.error("[v0] Erro ao adicionar item perdido:", error)
+      throw error
+    }
+  }
+
+  const adicionarItemEncontrado = async (data: FormDataEncontrado) => {
+    try {
+      const response = await fetch("/api/items/encontrados", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao adicionar item encontrado")
+      }
+
+      const novoItem: ItemEncontrado = await response.json()
+      setItems((prev) => [novoItem, ...prev])
+      console.log("[v0] Item encontrado adicionado via API:", novoItem)
+    } catch (error) {
+      console.error("[v0] Erro ao adicionar item encontrado:", error)
+      throw error
+    }
   }
 
   const buscarItens = (query: string, categoria?: string, local?: string): Item[] => {
@@ -117,6 +121,7 @@ export function ItemsProvider({ children }: { children: React.ReactNode }) {
     adicionarItemEncontrado,
     buscarItens,
     loading,
+    recarregarItens: carregarItens, // Adicionar função para recarregar dados
   }
 
   return <ItemsContext.Provider value={value}>{children}</ItemsContext.Provider>

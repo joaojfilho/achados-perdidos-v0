@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload, MapPin, User } from "lucide-react"
+import { ArrowLeft, Upload, MapPin, User, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useItems } from "@/contexts/items-context"
 import type { FormDataPerdido } from "@/lib/types"
@@ -31,6 +31,7 @@ const categorias = [
 export default function ReportarPerdidoPage() {
   const { toast } = useToast()
   const { adicionarItemPerdido } = useItems()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<FormDataPerdido>({
     nomeItem: "",
     descricao: "",
@@ -43,10 +44,9 @@ export default function ReportarPerdidoPage() {
     observacoes: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validação básica
     if (!formData.nomeItem || !formData.descricao || !formData.categoria || !formData.local || !formData.data) {
       toast({
         title: "Campos obrigatórios",
@@ -56,25 +56,37 @@ export default function ReportarPerdidoPage() {
       return
     }
 
-    adicionarItemPerdido(formData)
+    setIsSubmitting(true)
 
-    toast({
-      title: "Item reportado com sucesso!",
-      description: "Seu item perdido foi adicionado ao sistema. Você será notificado se alguém encontrá-lo.",
-    })
+    try {
+      await adicionarItemPerdido(formData)
 
-    // Reset form
-    setFormData({
-      nomeItem: "",
-      descricao: "",
-      categoria: "",
-      local: "",
-      data: "",
-      nomeContato: "",
-      telefone: "",
-      email: "",
-      observacoes: "",
-    })
+      toast({
+        title: "Item reportado com sucesso!",
+        description: "Seu item perdido foi adicionado ao sistema. Você será notificado se alguém encontrá-lo.",
+      })
+
+      setFormData({
+        nomeItem: "",
+        descricao: "",
+        categoria: "",
+        local: "",
+        data: "",
+        nomeContato: "",
+        telefone: "",
+        email: "",
+        observacoes: "",
+      })
+    } catch (error) {
+      console.error("[v0] Erro ao reportar item perdido:", error)
+      toast({
+        title: "Erro ao reportar item",
+        description: "Ocorreu um erro ao salvar seu item. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleInputChange = (field: keyof FormDataPerdido, value: string) => {
@@ -83,7 +95,6 @@ export default function ReportarPerdidoPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -111,7 +122,6 @@ export default function ReportarPerdidoPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Nome do Item */}
               <div className="space-y-2">
                 <Label htmlFor="nomeItem">Nome do Item *</Label>
                 <Input
@@ -123,7 +133,6 @@ export default function ReportarPerdidoPage() {
                 />
               </div>
 
-              {/* Categoria */}
               <div className="space-y-2">
                 <Label htmlFor="categoria">Categoria *</Label>
                 <Select value={formData.categoria} onValueChange={(value) => handleInputChange("categoria", value)}>
@@ -140,7 +149,6 @@ export default function ReportarPerdidoPage() {
                 </Select>
               </div>
 
-              {/* Descrição */}
               <div className="space-y-2">
                 <Label htmlFor="descricao">Descrição Detalhada *</Label>
                 <Textarea
@@ -153,7 +161,6 @@ export default function ReportarPerdidoPage() {
                 />
               </div>
 
-              {/* Local e Data */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="local">Local onde foi perdido *</Label>
@@ -177,7 +184,6 @@ export default function ReportarPerdidoPage() {
                 </div>
               </div>
 
-              {/* Informações de Contato */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <User className="w-5 h-5 text-primary" />
@@ -217,7 +223,6 @@ export default function ReportarPerdidoPage() {
                 </div>
               </div>
 
-              {/* Observações */}
               <div className="space-y-2">
                 <Label htmlFor="observacoes">Observações Adicionais</Label>
                 <Textarea
@@ -229,7 +234,6 @@ export default function ReportarPerdidoPage() {
                 />
               </div>
 
-              {/* Foto Upload Placeholder */}
               <div className="space-y-2">
                 <Label>Foto do Item (Opcional)</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
@@ -239,12 +243,18 @@ export default function ReportarPerdidoPage() {
                 </div>
               </div>
 
-              {/* Submit Button */}
               <div className="flex gap-4 pt-4">
-                <Button type="submit" className="flex-1">
-                  Reportar Item Perdido
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    "Reportar Item Perdido"
+                  )}
                 </Button>
-                <Button type="button" variant="outline" asChild>
+                <Button type="button" variant="outline" asChild disabled={isSubmitting}>
                   <Link href="/">Cancelar</Link>
                 </Button>
               </div>
