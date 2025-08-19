@@ -32,15 +32,22 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[v0] API: Iniciando POST para item perdido")
+
     await connectDB()
+    console.log("[v0] API: Conectado ao MongoDB")
+
     const data: FormDataPerdido = await request.json()
+    console.log("[v0] API: Dados recebidos:", data)
 
     const novoItem = new ItemPerdidoModel({
       ...data,
       criadoEm: new Date().toISOString(),
     })
 
+    console.log("[v0] API: Modelo criado, tentando salvar...")
     const itemSalvo = await novoItem.save()
+    console.log("[v0] API: Item salvo com sucesso:", itemSalvo._id)
 
     const response = {
       id: itemSalvo._id.toString(),
@@ -57,9 +64,14 @@ export async function POST(request: NextRequest) {
       tipo: "perdido" as const,
     }
 
+    console.log("[v0] API: Retornando resposta:", response)
     return NextResponse.json(response, { status: 201 })
   } catch (error) {
-    console.error("Erro ao criar item perdido:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("[v0] API: Erro detalhado ao criar item perdido:", error)
+    console.error("[v0] API: Stack trace:", error instanceof Error ? error.stack : "No stack trace")
+    return NextResponse.json(
+      { error: "Erro interno do servidor", details: error instanceof Error ? error.message : "Erro desconhecido" },
+      { status: 500 },
+    )
   }
 }

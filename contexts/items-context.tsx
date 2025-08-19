@@ -51,6 +51,8 @@ export function ItemsProvider({ children }: { children: React.ReactNode }) {
 
   const adicionarItemPerdido = async (data: FormDataPerdido) => {
     try {
+      console.log("[v0] Iniciando adição de item perdido:", data)
+
       const response = await fetch("/api/items/perdidos", {
         method: "POST",
         headers: {
@@ -59,21 +61,28 @@ export function ItemsProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(data),
       })
 
+      console.log("[v0] Response status:", response.status)
+      console.log("[v0] Response ok:", response.ok)
+
       if (!response.ok) {
-        throw new Error("Erro ao adicionar item perdido")
+        const errorText = await response.text()
+        console.error("[v0] Erro na resposta da API:", errorText)
+        throw new Error(`Erro ao adicionar item perdido: ${response.status} - ${errorText}`)
       }
 
       const novoItem: ItemPerdido = await response.json()
       setItems((prev) => [novoItem, ...prev])
-      console.log("[v0] Item perdido adicionado via API:", novoItem)
+      console.log("[v0] Item perdido adicionado com sucesso:", novoItem)
     } catch (error) {
-      console.error("[v0] Erro ao adicionar item perdido:", error)
+      console.error("[v0] Erro completo ao adicionar item perdido:", error)
       throw error
     }
   }
 
   const adicionarItemEncontrado = async (data: FormDataEncontrado) => {
     try {
+      console.log("[v0] Iniciando adição de item encontrado:", data)
+
       const response = await fetch("/api/items/encontrados", {
         method: "POST",
         headers: {
@@ -82,15 +91,20 @@ export function ItemsProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(data),
       })
 
+      console.log("[v0] Response status:", response.status)
+      console.log("[v0] Response ok:", response.ok)
+
       if (!response.ok) {
-        throw new Error("Erro ao adicionar item encontrado")
+        const errorText = await response.text()
+        console.error("[v0] Erro na resposta da API:", errorText)
+        throw new Error(`Erro ao adicionar item encontrado: ${response.status} - ${errorText}`)
       }
 
       const novoItem: ItemEncontrado = await response.json()
       setItems((prev) => [novoItem, ...prev])
-      console.log("[v0] Item encontrado adicionado via API:", novoItem)
+      console.log("[v0] Item encontrado adicionado com sucesso:", novoItem)
     } catch (error) {
-      console.error("[v0] Erro ao adicionar item encontrado:", error)
+      console.error("[v0] Erro completo ao adicionar item encontrado:", error)
       throw error
     }
   }
