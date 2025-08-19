@@ -28,6 +28,16 @@ const categorias = [
   "Outros",
 ]
 
+interface FormErrors {
+  nomeItem?: string
+  descricao?: string
+  categoria?: string
+  local?: string
+  data?: string
+  email?: string
+  telefone?: string
+}
+
 export default function ReportarPerdidoPage() {
   const { toast } = useToast()
   const { adicionarItemPerdido } = useItems()
@@ -44,13 +54,66 @@ export default function ReportarPerdidoPage() {
     observacoes: "",
   })
 
+  const [errors, setErrors] = useState<FormErrors>({})
+
+  const validateField = (field: keyof FormDataPerdido, value: string): string | undefined => {
+    switch (field) {
+      case "nomeItem":
+        return value.trim().length < 3 ? "Nome do item deve ter pelo menos 3 caracteres" : undefined
+      case "descricao":
+        return value.trim().length < 10 ? "Descrição deve ter pelo menos 10 caracteres" : undefined
+      case "categoria":
+        return !value ? "Selecione uma categoria" : undefined
+      case "local":
+        return value.trim().length < 3 ? "Local deve ter pelo menos 3 caracteres" : undefined
+      case "data":
+        return !value ? "Data é obrigatória" : undefined
+      case "email":
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return "E-mail inválido"
+        }
+        return undefined
+      case "telefone":
+        if (value && !/^$$\d{2}$$\s\d{4,5}-\d{4}$/.test(value)) {
+          return "Telefone deve estar no formato (00) 00000-0000"
+        }
+        return undefined
+      default:
+        return undefined
+    }
+  }
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+
+    // Validar campos obrigatórios
+    newErrors.nomeItem = validateField("nomeItem", formData.nomeItem)
+    newErrors.descricao = validateField("descricao", formData.descricao)
+    newErrors.categoria = validateField("categoria", formData.categoria)
+    newErrors.local = validateField("local", formData.local)
+    newErrors.data = validateField("data", formData.data)
+
+    // Validar campos opcionais se preenchidos
+    if (formData.email) {
+      newErrors.email = validateField("email", formData.email)
+    }
+    if (formData.telefone) {
+      newErrors.telefone = validateField("telefone", formData.telefone)
+    }
+
+    setErrors(newErrors)
+
+    // Retorna true se não há erros
+    return !Object.values(newErrors).some((error) => error !== undefined)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nomeItem || !formData.descricao || !formData.categoria || !formData.local || !formData.data) {
+    if (!validateForm()) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        title: "Erro de validação",
+        description: "Por favor, corrija os erros no formulário antes de continuar.",
         variant: "destructive",
       })
       return
@@ -77,6 +140,7 @@ export default function ReportarPerdidoPage() {
         email: "",
         observacoes: "",
       })
+      setErrors({})
     } catch (error) {
       console.error("[v0] Erro ao reportar item perdido:", error)
       toast({
@@ -91,6 +155,28 @@ export default function ReportarPerdidoPage() {
 
   const handleInputChange = (field: keyof FormDataPerdido, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+
+    // Validar campo em tempo real se já teve erro
+    if (errors[field as keyof FormErrors]) {
+      const error = validateField(field, value)
+      setErrors((prev) => ({ ...prev, [field]: error }))
+    }
+  }
+
+  const handleTelefoneChange = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, "")
+
+    // Aplica máscara
+    let formatted = numbers
+    if (numbers.length >= 2) {
+      formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
+    }
+    if (numbers.length >= 7) {
+      formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`
+    }
+
+    handleInputChange("telefone", formatted)
   }
 
   return (
@@ -129,14 +215,16 @@ export default function ReportarPerdidoPage() {
                   placeholder="Ex: iPhone 13, Carteira de couro marrom, Chaves do carro"
                   value={formData.nomeItem}
                   onChange={(e) => handleInputChange("nomeItem", e.target.value)}
+                  className={errors.nomeItem ? "border-red-500" : ""}
                   required
                 />
+                {errors.nomeItem && <p className="text-sm text-red-500">{errors.nomeItem}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="categoria">Categoria *</Label>
                 <Select value={formData.categoria} onValueChange={(value) => handleInputChange("categoria", value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={errors.categoria ? "border-red-500" : ""}>
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
@@ -147,6 +235,7 @@ export default function ReportarPerdidoPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.categoria && <p className="text-sm text-red-500">{errors.categoria}</p>}
               </div>
 
               <div className="space-y-2">
@@ -156,9 +245,11 @@ export default function ReportarPerdidoPage() {
                   placeholder="Descreva o item em detalhes: cor, tamanho, marca, características especiais, etc."
                   value={formData.descricao}
                   onChange={(e) => handleInputChange("descricao", e.target.value)}
+                  className={errors.descricao ? "border-red-500" : ""}
                   rows={4}
                   required
                 />
+                {errors.descricao && <p className="text-sm text-red-500">{errors.descricao}</p>}
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -169,8 +260,10 @@ export default function ReportarPerdidoPage() {
                     placeholder="Ex: Shopping Center, Parque da Cidade, Rua XV"
                     value={formData.local}
                     onChange={(e) => handleInputChange("local", e.target.value)}
+                    className={errors.local ? "border-red-500" : ""}
                     required
                   />
+                  {errors.local && <p className="text-sm text-red-500">{errors.local}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="data">Data aproximada *</Label>
@@ -179,8 +272,10 @@ export default function ReportarPerdidoPage() {
                     type="date"
                     value={formData.data}
                     onChange={(e) => handleInputChange("data", e.target.value)}
+                    className={errors.data ? "border-red-500" : ""}
                     required
                   />
+                  {errors.data && <p className="text-sm text-red-500">{errors.data}</p>}
                 </div>
               </div>
 
@@ -207,8 +302,11 @@ export default function ReportarPerdidoPage() {
                       id="telefone"
                       placeholder="(00) 00000-0000"
                       value={formData.telefone}
-                      onChange={(e) => handleInputChange("telefone", e.target.value)}
+                      onChange={(e) => handleTelefoneChange(e.target.value)}
+                      className={errors.telefone ? "border-red-500" : ""}
+                      maxLength={15}
                     />
+                    {errors.telefone && <p className="text-sm text-red-500">{errors.telefone}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">E-mail</Label>
@@ -218,7 +316,9 @@ export default function ReportarPerdidoPage() {
                       placeholder="seu@email.com"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={errors.email ? "border-red-500" : ""}
                     />
+                    {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                   </div>
                 </div>
               </div>
