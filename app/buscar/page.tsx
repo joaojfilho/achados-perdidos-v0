@@ -28,7 +28,7 @@ const categorias = [
 ]
 
 export default function BuscarPage() {
-  const { itensPerdidos, itensEncontrados, buscarItens, loading } = useItems()
+  const { itensPerdidos, itensEncontrados, loading } = useItems()
   const [busca, setBusca] = useState("")
   const [categoriaFiltro, setCategoriaFiltro] = useState("Todos")
   const [localFiltro, setLocalFiltro] = useState("")
@@ -36,8 +36,20 @@ export default function BuscarPage() {
 
   const itensFiltrados = useMemo(() => {
     const itensAtivos = tipoAtivo === "perdidos" ? itensPerdidos : itensEncontrados
-    return buscarItens(busca, categoriaFiltro, localFiltro).filter((item) => item.tipo === tipoAtivo)
-  }, [buscarItens, busca, categoriaFiltro, localFiltro, tipoAtivo, itensPerdidos, itensEncontrados])
+
+    return itensAtivos.filter((item) => {
+      const matchQuery =
+        busca === "" ||
+        item.nomeItem.toLowerCase().includes(busca.toLowerCase()) ||
+        item.descricao.toLowerCase().includes(busca.toLowerCase())
+
+      const matchCategoria = categoriaFiltro === "Todos" || item.categoria === categoriaFiltro
+
+      const matchLocal = localFiltro === "" || item.local.toLowerCase().includes(localFiltro.toLowerCase())
+
+      return matchQuery && matchCategoria && matchLocal
+    })
+  }, [busca, categoriaFiltro, localFiltro, tipoAtivo, itensPerdidos, itensEncontrados])
 
   if (loading) {
     return (
